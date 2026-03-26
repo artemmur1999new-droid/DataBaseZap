@@ -1,46 +1,121 @@
-from flask import Flask
+import os
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from random import randint
-from json import loads
-import os
 
 accounts = {}
 
 app = Flask(__name__)
 CORS(app)
 
-@app.route("/<name>/<password>")
-def crus(name, password):
+# Проверка сервера
+@app.route("/")
+def home():
+    return "Server is running"
+
+
+# 🔹 Регистрация
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.json
+
+    name = data.get("name")
+    password = data.get("password")
+
+    if not name or not password:
+        return jsonify({"status": "error", "message": "no_data"})
+
+    if name in accounts:
+        return jsonify({"status": "error", "message": "exists"})
+
     while True:
         ids = str(randint(999, 999999999999999999999999))
-        if not ids in accounts:
+        if ids not in accounts:
             break
-    accounts[name] = {"password": password, "id": ids, "data": {}}
+
+    accounts[name] = {
+        "password": password,
+        "id": ids,
+        "data": {}
+    }
+
     accounts[ids] = name
-    return ids
 
-@app.route("/login/<name>/<password>")
-def lg(name, password):
-    return accounts.get(name).get("id") if accounts.get("name").get("password") == password else "err"
+    return jsonify({"status": "ok", "id": ids})
 
-@app.route("/addservice/<id>/<name>")
-def adds(id, name):
-    ids = accounts[id]
-    usr = accounts[ids][data]
-    usr[name] = {}
-    return ids
 
-@app.route("/getdata/<id>/<name>")
-def gtd(id, name):
-    ids = accounts[id]
-    usr = accounts[ids][data][name]
-    return usr
+# 🔹 Логин
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.json
 
-@app.route("/setdata/<id>/<name>/<path:path>")
-def std(id, name, path):
-    ids = accounts[id]
-    usr = accounts[ids][data]
-    usr[name] = loads(path)
-    return f"{usr[name]}"
+    name = data.get("name")
+    password = data.get("password")
 
-app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)), debug=False)
+    user = accounts.get(name)
+
+    if user and user.get("password") == password:
+        return jsonify({"status": "ok", "id": user["id"]})
+
+    return jsonify({"status": "error", "message": "invalid"})
+
+
+# 🔹 Добавить сервис
+@app.route("/addservice", methods=["POST"])
+def add_service():
+    data = request.json
+
+    id = data.get("id")
+    service = data.get("service")
+
+    username = accounts.get(id)
+
+    if not username:
+        return jsonify({"status": "error", "message": "invalid_id"})
+
+    accounts[username]["data"][service] = {}
+
+    return jsonify({"status": "ok"})
+
+
+# 🔹 Получить данные
+@app.route("/getdata", methods=["POST"])
+def get_data():
+    data = request.json
+
+    id = data.get("id")
+    service = data.get("service")
+
+    username = accounts.get(id)
+
+    if not username:
+        return jsonify({"status": "error", "message": "invalid_id"})
+
+    return jsonify(accounts[username]["data"].get(service, {}))
+
+
+# 🔹 Установить данные
+@app.route("/setdata", methods=["POST"])
+def set_data():
+    data = request.json
+
+    id = data.get("id")
+    service = data.get("service")
+    value = data.get("data")
+
+    username = accounts.get(id)
+
+    if not username:
+        return jsonify({"status": "error", "message": "invalid_id"})
+
+    accounts[username]["data"][service] = value
+
+    return jsonify({"status": "ok"})
+
+
+# 🔹 Запуск (Render / локально)
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 10000))
+    )
