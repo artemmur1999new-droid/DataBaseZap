@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 from random import randint
 from json import loads
+import os
 
 accounts = {}
 
@@ -42,4 +43,4 @@ def std(id, name, path):
     usr[name] = loads(path)
     return f"{usr[name]}"
 
-app.run(port=10000, debug=False)
+app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)), debug=False)
